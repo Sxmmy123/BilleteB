@@ -29,8 +29,6 @@ width:100%;
 border-radius:10px;
 }
 
-/* RECUADRO */
-
 .guia{
 position:absolute;
 top:50%;
@@ -41,8 +39,6 @@ height:90px;
 border:4px solid #00ff88;
 border-radius:10px;
 }
-
-/* ALERTA GRANDE */
 
 #alerta{
 position:fixed;
@@ -88,6 +84,9 @@ text-align:center;
 const video=document.getElementById("video");
 const alerta=document.getElementById("alerta");
 
+let escaneoActivo=true;
+let ultimaSerie="";
+
 /* RANGOS */
 
 const rangos10=[[67250001,67700000],[69050001,69500000],[69500001,69950000],[69950001,70400000],[70400001,70850000],[70850001,71300000],[76310012,85139995],[86400001,86850000],[90900001,91350000],[91800001,92250000]];
@@ -104,13 +103,15 @@ video:{facingMode:"environment"}
 })
 .then(stream=>{
 video.srcObject=stream;
-setInterval(escanear,1500);
+setInterval(escanear,1200);
 });
 
 
-/* ESCANEAR SOLO CENTRO */
+/* ESCANEO */
 
 function escanear(){
+
+if(!escaneoActivo) return;
 
 const canvas=document.createElement("canvas");
 const ctx=canvas.getContext("2d");
@@ -118,10 +119,10 @@ const ctx=canvas.getContext("2d");
 let w=video.videoWidth;
 let h=video.videoHeight;
 
-/* recorte central */
+/* ZOOM DIGITAL */
 
-let cropWidth=w*0.8;
-let cropHeight=h*0.2;
+let cropWidth=w*0.6;
+let cropHeight=h*0.18;
 
 let x=(w-cropWidth)/2;
 let y=(h-cropHeight)/2;
@@ -132,7 +133,7 @@ canvas.height=cropHeight;
 ctx.drawImage(video,x,y,cropWidth,cropHeight,0,0,cropWidth,cropHeight);
 
 Tesseract.recognize(canvas,'eng',{
-tessedit_char_whitelist:'AB0123456789'
+tessedit_char_whitelist:'B0123456789'
 })
 .then(({data:{text}})=>{
 
@@ -149,19 +150,23 @@ function procesar(text){
 
 let limpio=text
 .toUpperCase()
-.replace(/[^0-9AB]/g,'');
+.replace(/[^0-9B]/g,'');
 
-let match=limpio.match(/(\d{8,9})(A|B)/);
+/* SOLO 9 DIGITOS + B */
+
+let match=limpio.match(/\d{9}B/);
 
 if(!match) return;
 
-let numero=match[1];
+let serie=match[0];
 
-if(numero.length==8){
-numero="0"+numero;
-}
+/* evitar repetidos */
 
-numero=parseInt(numero);
+if(serie===ultimaSerie) return;
+
+ultimaSerie=serie;
+
+let numero=parseInt(serie.substring(0,9));
 
 verificar(numero);
 
@@ -209,16 +214,21 @@ return false;
 }
 
 
-/* ALERTA GRANDE */
+/* ALERTA */
 
 function mostrar(texto,color){
+
+escaneoActivo=false;
 
 alerta.className=color;
 alerta.innerHTML=texto;
 alerta.style.display="flex";
 
 setTimeout(()=>{
+
 alerta.style.display="none";
+escaneoActivo=true;
+
 },3000);
 
 }
