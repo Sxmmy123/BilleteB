@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>Scanner Billetes</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -40,18 +39,20 @@ border-radius:6px;
 }
 
 #result{
-font-size:34px;
+font-size:36px;
 font-weight:bold;
 margin-top:15px;
 }
 
 #serial{
 font-size:26px;
-margin-top:6px;
+margin-top:5px;
 }
 
-.verde{color:#2cff6d;}
-.rojo{color:#ff3b3b;}
+.valid{ color:#00ff88; }
+.invalid10{ color:#0099ff; }
+.invalid20{ color:orange; }
+.invalid50{ color:#cc66ff; }
 
 </style>
 </head>
@@ -61,8 +62,11 @@ margin-top:6px;
 <h5 class="mb-3">Escáner de Billetes</h5>
 
 <div id="scannerBox">
+
 <video id="video" autoplay playsinline></video>
+
 <div id="scanLine"></div>
+
 </div>
 
 <div id="result"></div>
@@ -70,15 +74,15 @@ margin-top:6px;
 
 <script>
 
-const video=document.getElementById("video")
-const result=document.getElementById("result")
-const serial=document.getElementById("serial")
+const video = document.getElementById("video")
+const result = document.getElementById("result")
+const serial = document.getElementById("serial")
 
-let lastScan=""
-let cooldown=false
+let lastScan = ""
+let cooldown = false
 
 
-const ranges10=[
+const ranges10 = [
 [67250001,67700000],
 [69050001,69500000],
 [69500001,69950000],
@@ -91,7 +95,7 @@ const ranges10=[
 [91800001,92250000]
 ]
 
-const ranges20=[
+const ranges20 = [
 [87280145,91646549],
 [96650001,97100000],
 [99800001,100250000],
@@ -110,7 +114,7 @@ const ranges20=[
 [120500001,120950000]
 ]
 
-const ranges50=[
+const ranges50 = [
 [77100001,77550000],
 [78000001,78450000],
 [78900001,96350000],
@@ -133,52 +137,56 @@ zoom:2
 }
 })
 .then(stream=>{
-video.srcObject=stream
+video.srcObject = stream
 startScanner()
 })
 
 
 function checkRange(num,ranges){
 for(let r of ranges){
-if(num>=r[0] && num<=r[1]) return true
+if(num>=r[0] && num<=r[1]){
+return true
+}
 }
 return false
 }
 
 
-function getDenomination(num){
+function showResult(type,number){
 
-if(num<90000000) return 10
-if(num<110000000) return 20
-return 50
+serial.innerText = number + " B"
 
+if(type=="valid"){
+result.className="valid"
+result.innerText="✔ VÁLIDO"
 }
 
+if(type=="invalid10"){
+result.className="invalid10"
+result.innerText="X 10 INVÁLIDO"
+}
 
-function showResult(valid,denom,number){
+if(type=="invalid20"){
+result.className="invalid20"
+result.innerText="X 20 INVÁLIDO"
+}
 
-serial.innerText=number+" B"
-
-if(valid){
-result.className="verde"
-result.innerText="✔ "+denom+" Bs VÁLIDO"
-}else{
-result.className="rojo"
-result.innerText="❌ "+denom+" Bs INVÁLIDO"
+if(type=="invalid50"){
+result.className="invalid50"
+result.innerText="X 50 INVÁLIDO"
 }
 
 }
-
 
 
 function process(text){
 
-text=text.replace(/\s/g,"")
+text = text.replace(/\s/g,"")
 
-let match=text.match(/(\d{9})B/)
+let match = text.match(/(\d{9})B/)
 
 if(!match){
-let rev=text.match(/B(\d{9})/)
+let rev = text.match(/B(\d{9})/)
 if(rev){
 match=[null,rev[1]]
 }else{
@@ -186,37 +194,24 @@ return
 }
 }
 
-let number=match[1]
+let number = match[1]
 
 if(number===lastScan || cooldown) return
 
-lastScan=number
+lastScan = number
 cooldown=true
 
-setTimeout(()=>{cooldown=false},3000)
+setTimeout(()=>{ cooldown=false },3000)
 
-let num=parseInt(number)
-let denom=getDenomination(num)
+let num = parseInt(number)
 
-if(denom==10 && checkRange(num,ranges10)){
-showResult(false,10,number)
-return
-}
+if(checkRange(num,ranges10)){ showResult("invalid10",number); return }
+if(checkRange(num,ranges20)){ showResult("invalid20",number); return }
+if(checkRange(num,ranges50)){ showResult("invalid50",number); return }
 
-if(denom==20 && checkRange(num,ranges20)){
-showResult(false,20,number)
-return
-}
-
-if(denom==50 && checkRange(num,ranges50)){
-showResult(false,50,number)
-return
-}
-
-showResult(true,denom,number)
+showResult("valid",number)
 
 }
-
 
 
 function startScanner(){
