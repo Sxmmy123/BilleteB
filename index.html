@@ -13,7 +13,7 @@
 <style>
 
 body{
-background:#111;
+background:#0f172a;
 color:white;
 text-align:center;
 }
@@ -34,7 +34,7 @@ position:absolute;
 top:50%;
 left:50%;
 transform:translate(-50%,-50%);
-width:80%;
+width:75%;
 height:90px;
 border:4px solid #00ff88;
 border-radius:10px;
@@ -49,14 +49,13 @@ height:100%;
 display:none;
 align-items:center;
 justify-content:center;
-font-size:50px;
+font-size:60px;
 font-weight:bold;
 z-index:999;
-text-align:center;
 }
 
-.azul{background:#0d6efd;}
-.naranja{background:#ff7b00;}
+.azul{background:#2563eb;}
+.naranja{background:#f97316;}
 .lila{background:#a855f7;}
 .success{background:#16a34a;}
 
@@ -69,13 +68,11 @@ text-align:center;
 <h3 class="mt-3">Escáner de Billetes</h3>
 
 <div class="camara mt-3">
-
 <video id="video" autoplay playsinline></video>
 <div class="guia"></div>
-
 </div>
 
-<p class="mt-3">Coloque la serie dentro del recuadro</p>
+<p class="mt-3">Coloque los números dentro del recuadro</p>
 
 <div id="alerta"></div>
 
@@ -85,7 +82,8 @@ const video=document.getElementById("video");
 const alerta=document.getElementById("alerta");
 
 let escaneoActivo=true;
-let ultimaSerie="";
+let ultimoDetectado="";
+let confirmacion=0;
 
 /* RANGOS */
 
@@ -95,7 +93,6 @@ const rangos20=[[87280145,91646549],[96650001,97100000],[99800001,100250000],[10
 
 const rangos50=[[77100001,77550000],[78000001,78450000],[78900001,96350000],[96350001,96800000],[96800001,97250000],[98150001,98600000],[104900001,105350000],[105350001,105800000],[106700001,107150000],[107600001,108050000],[108050001,108500000],[109400001,109850000]];
 
-
 /* CAMARA */
 
 navigator.mediaDevices.getUserMedia({
@@ -103,7 +100,7 @@ video:{facingMode:"environment"}
 })
 .then(stream=>{
 video.srcObject=stream;
-setInterval(escanear,1200);
+setInterval(escanear,900);
 });
 
 
@@ -119,18 +116,40 @@ const ctx=canvas.getContext("2d");
 let w=video.videoWidth;
 let h=video.videoHeight;
 
-/* ZOOM DIGITAL */
+/* ZOOM CENTRAL */
 
-let cropWidth=w*0.6;
-let cropHeight=h*0.18;
+let cropW=w*0.6;
+let cropH=h*0.18;
 
-let x=(w-cropWidth)/2;
-let y=(h-cropHeight)/2;
+let x=(w-cropW)/2;
+let y=(h-cropH)/2;
 
-canvas.width=cropWidth;
-canvas.height=cropHeight;
+canvas.width=cropW;
+canvas.height=cropH;
 
-ctx.drawImage(video,x,y,cropWidth,cropHeight,0,0,cropWidth,cropHeight);
+ctx.drawImage(video,x,y,cropW,cropH,0,0,cropW,cropH);
+
+/* PREPROCESAMIENTO */
+
+let imgData=ctx.getImageData(0,0,cropW,cropH);
+let data=imgData.data;
+
+for(let i=0;i<data.length;i+=4){
+
+let gray=(data[i]+data[i+1]+data[i+2])/3;
+
+gray=gray>120?255:0;
+
+data[i]=gray;
+data[i+1]=gray;
+data[i+2]=gray;
+
+}
+
+ctx.putImageData(imgData,0,0);
+
+
+/* OCR */
 
 Tesseract.recognize(canvas,'eng',{
 tessedit_char_whitelist:'B0123456789'
@@ -152,21 +171,26 @@ let limpio=text
 .toUpperCase()
 .replace(/[^0-9B]/g,'');
 
-/* SOLO 9 DIGITOS + B */
+/* SOLO EXACTAMENTE 9 DIGITOS + B */
 
-let match=limpio.match(/\d{9}B/);
+if(!/^\d{9}B$/.test(limpio)) return;
 
-if(!match) return;
+/* CONFIRMACION DOBLE */
 
-let serie=match[0];
+if(limpio===ultimoDetectado){
 
-/* evitar repetidos */
+confirmacion++;
 
-if(serie===ultimaSerie) return;
+}else{
 
-ultimaSerie=serie;
+ultimoDetectado=limpio;
+confirmacion=1;
 
-let numero=parseInt(serie.substring(0,9));
+}
+
+if(confirmacion<2) return;
+
+let numero=parseInt(limpio.substring(0,9));
 
 verificar(numero);
 
@@ -178,21 +202,21 @@ verificar(numero);
 function verificar(numero){
 
 if(enRango(numero,rangos10)){
-mostrar("X BILLETE INVÁLIDO","azul");
+mostrar("X INVÁLIDO","azul");
 return;
 }
 
 if(enRango(numero,rangos20)){
-mostrar("X BILLETE INVÁLIDO","naranja");
+mostrar("X INVÁLIDO","naranja");
 return;
 }
 
 if(enRango(numero,rangos50)){
-mostrar("X BILLETE INVÁLIDO","lila");
+mostrar("X INVÁLIDO","lila");
 return;
 }
 
-mostrar("✔ BILLETE VÁLIDO","success");
+mostrar("✔ VÁLIDO","success");
 
 }
 
@@ -228,6 +252,7 @@ setTimeout(()=>{
 
 alerta.style.display="none";
 escaneoActivo=true;
+confirmacion=0;
 
 },3000);
 
