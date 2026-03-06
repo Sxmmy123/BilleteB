@@ -6,7 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <title>Escáner de Billetes</title>
@@ -14,7 +13,9 @@
 <style>
 
 body{
-background:#f5f5f5;
+background:#111;
+color:white;
+text-align:center;
 }
 
 .camara{
@@ -25,10 +26,10 @@ margin:auto;
 
 video{
 width:100%;
-border-radius:12px;
+border-radius:10px;
 }
 
-/* recuadro guia */
+/* RECUADRO */
 
 .guia{
 position:absolute;
@@ -36,33 +37,32 @@ top:50%;
 left:50%;
 transform:translate(-50%,-50%);
 width:80%;
-height:80px;
-border:3px solid #00ff99;
+height:90px;
+border:4px solid #00ff88;
 border-radius:10px;
-box-shadow:0 0 10px rgba(0,255,150,0.7);
 }
 
-/* alerta */
+/* ALERTA GRANDE */
 
 #alerta{
 position:fixed;
-top:20px;
-left:50%;
-transform:translateX(-50%);
+top:0;
+left:0;
+width:100%;
+height:100%;
 display:none;
-padding:20px;
-color:white;
-font-size:22px;
-border-radius:10px;
+align-items:center;
+justify-content:center;
+font-size:50px;
+font-weight:bold;
 z-index:999;
 text-align:center;
-min-width:200px;
 }
 
 .azul{background:#0d6efd;}
-.naranja{background:#fd7e14;}
+.naranja{background:#ff7b00;}
 .lila{background:#a855f7;}
-.success{background:#198754;}
+.success{background:#16a34a;}
 
 </style>
 
@@ -70,161 +70,129 @@ min-width:200px;
 
 <body>
 
-<div class="container text-center py-4">
+<h3 class="mt-3">Escáner de Billetes</h3>
 
-<h4 class="mb-3">Escáner de Billetes</h4>
-
-<div class="camara">
+<div class="camara mt-3">
 
 <video id="video" autoplay playsinline></video>
 <div class="guia"></div>
 
 </div>
 
-<p class="text-muted mt-2">
-Coloque los 9 dígitos y la serie dentro del recuadro
-</p>
-
-</div>
+<p class="mt-3">Coloque la serie dentro del recuadro</p>
 
 <div id="alerta"></div>
 
 <script>
 
-const video = document.getElementById("video");
-const alerta = document.getElementById("alerta");
+const video=document.getElementById("video");
+const alerta=document.getElementById("alerta");
 
-/* RANGOS INVALIDOS */
+/* RANGOS */
 
-const rangos10 = [
-[67250001,67700000],
-[69050001,69500000],
-[69500001,69950000],
-[69950001,70400000],
-[70400001,70850000],
-[70850001,71300000],
-[76310012,85139995],
-[86400001,86850000],
-[90900001,91350000],
-[91800001,92250000]
-];
+const rangos10=[[67250001,67700000],[69050001,69500000],[69500001,69950000],[69950001,70400000],[70400001,70850000],[70850001,71300000],[76310012,85139995],[86400001,86850000],[90900001,91350000],[91800001,92250000]];
 
-const rangos20 = [
-[87280145,91646549],
-[96650001,97100000],
-[99800001,100250000],
-[100250001,100700000],
-[109250001,109700000],
-[110600001,111050000],
-[111050001,111500000],
-[111950001,112400000],
-[112400001,112850000],
-[112850001,113300000],
-[114200001,114650000],
-[114650001,115100000],
-[115100001,115550000],
-[118700001,119150000],
-[119150001,119600000],
-[120500001,120950000]
-];
+const rangos20=[[87280145,91646549],[96650001,97100000],[99800001,100250000],[100250001,100700000],[109250001,109700000],[110600001,111050000],[111050001,111500000],[111950001,112400000],[112400001,112850000],[112850001,113300000],[114200001,114650000],[114650001,115100000],[115100001,115550000],[118700001,119150000],[119150001,119600000],[120500001,120950000]];
 
-const rangos50 = [
-[77100001,77550000],
-[78000001,78450000],
-[78900001,96350000],
-[96350001,96800000],
-[96800001,97250000],
-[98150001,98600000],
-[104900001,105350000],
-[105350001,105800000],
-[106700001,107150000],
-[107600001,108050000],
-[108050001,108500000],
-[109400001,109850000]
-];
+const rangos50=[[77100001,77550000],[78000001,78450000],[78900001,96350000],[96350001,96800000],[96800001,97250000],[98150001,98600000],[104900001,105350000],[105350001,105800000],[106700001,107150000],[107600001,108050000],[108050001,108500000],[109400001,109850000]];
 
-/* iniciar camara */
+
+/* CAMARA */
 
 navigator.mediaDevices.getUserMedia({
 video:{facingMode:"environment"}
 })
 .then(stream=>{
-video.srcObject = stream;
-setInterval(escanear,2000);
+video.srcObject=stream;
+setInterval(escanear,1500);
 });
 
-/* escaneo */
+
+/* ESCANEAR SOLO CENTRO */
 
 function escanear(){
 
-const canvas = document.createElement("canvas");
-const ctx = canvas.getContext("2d");
+const canvas=document.createElement("canvas");
+const ctx=canvas.getContext("2d");
 
-canvas.width = video.videoWidth;
-canvas.height = video.videoHeight;
+let w=video.videoWidth;
+let h=video.videoHeight;
 
-ctx.drawImage(video,0,0);
+/* recorte central */
+
+let cropWidth=w*0.8;
+let cropHeight=h*0.2;
+
+let x=(w-cropWidth)/2;
+let y=(h-cropHeight)/2;
+
+canvas.width=cropWidth;
+canvas.height=cropHeight;
+
+ctx.drawImage(video,x,y,cropWidth,cropHeight,0,0,cropWidth,cropHeight);
 
 Tesseract.recognize(canvas,'eng',{
 tessedit_char_whitelist:'AB0123456789'
 })
 .then(({data:{text}})=>{
 
-procesarTexto(text);
+procesar(text);
 
 });
 
 }
 
-/* procesar OCR */
 
-function procesarTexto(texto){
+/* PROCESAR TEXTO */
 
-let limpio = texto
+function procesar(text){
+
+let limpio=text
 .toUpperCase()
 .replace(/[^0-9AB]/g,'');
 
-let match = limpio.match(/(\d{8,9})(A|B)/);
+let match=limpio.match(/(\d{8,9})(A|B)/);
 
 if(!match) return;
 
-let numero = match[1];
-let serie = match[2];
+let numero=match[1];
 
-if(numero.length === 8){
-numero = "0"+numero;
+if(numero.length==8){
+numero="0"+numero;
 }
 
-numero = parseInt(numero);
+numero=parseInt(numero);
 
-verificar(numero,serie);
+verificar(numero);
 
 }
 
-/* verificar rangos */
 
-function verificar(numero,serie){
+/* VERIFICAR */
+
+function verificar(numero){
 
 if(enRango(numero,rangos10)){
-mostrar("X Billete inválido","azul");
+mostrar("X BILLETE INVÁLIDO","azul");
 return;
 }
 
 if(enRango(numero,rangos20)){
-mostrar("X Billete inválido","naranja");
+mostrar("X BILLETE INVÁLIDO","naranja");
 return;
 }
 
 if(enRango(numero,rangos50)){
-mostrar("X Billete inválido","lila");
+mostrar("X BILLETE INVÁLIDO","lila");
 return;
 }
 
-mostrar("✔ Billete válido","success");
+mostrar("✔ BILLETE VÁLIDO","success");
 
 }
 
-/* rango */
+
+/* RANGO */
 
 function enRango(num,rangos){
 
@@ -240,13 +208,14 @@ return false;
 
 }
 
-/* alerta */
+
+/* ALERTA GRANDE */
 
 function mostrar(texto,color){
 
-alerta.className = color;
-alerta.innerHTML = texto;
-alerta.style.display = "block";
+alerta.className=color;
+alerta.innerHTML=texto;
+alerta.style.display="flex";
 
 setTimeout(()=>{
 alerta.style.display="none";
